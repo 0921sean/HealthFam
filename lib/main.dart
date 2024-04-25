@@ -21,15 +21,16 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   int tab = 0; // Initialize tab index
-  List<String> names = ['권정호', '김세호', '김현빈', '신동훈', '이명건', '천승범', '황동근'];
   var data = [];
+  List<String> names = ['권정호', '김세호', '김현빈', '신동훈', '이명건', '천승범', '황동근'];
+  List<String> weekdayList = ['월', '화', '수', '목', '금', '토', '일'];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar( title: Text('💪 헬스팸',), backgroundColor: Colors.lightBlueAccent[400], ),
-      //redAccent[400]
-      body: [Home(names : names), Text('기록페이지')][tab],
+      appBar: AppBar( title: Text('💪 헬스팸',), backgroundColor: Colors.redAccent[400], ), //lightBlueAccent[400]
+      body: [Home(names : names, data : data, weekdayList : weekdayList), Check(names : names, data : data), Text('기록페이지')][tab],
+      // 홈화면 : 이번주 전체 진행상태, 체크화면 : 인증, 달력화면 : 총 기록
       bottomNavigationBar: BottomNavigationBar(
           showSelectedLabels: false,
           showUnselectedLabels: false,
@@ -40,6 +41,7 @@ class _MyAppState extends State<MyApp> {
           },
           items: [
             BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: '홈'),
+            BottomNavigationBarItem(icon: Icon(Icons.check), label: '체크'),
             BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: '기록'),
           ]
       ),
@@ -48,14 +50,166 @@ class _MyAppState extends State<MyApp> {
 }
 
 class Home extends StatefulWidget {
-  const Home({super.key, this.names});
-  final List<String>? names;
+  const Home({super.key, this.names, this.data, this.weekdayList});
+  final names, data, weekdayList;
 
   @override
   State<Home> createState() => _HomeState();
 }
 
 class _HomeState extends State<Home> {
+
+  getWeekNum(String name) {
+    DateTime now = DateTime.now();
+    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Get the start of the current week
+    DateTime endOfWeek = now.add(Duration(days: DateTime.daysPerWeek - now.weekday)); // Get the end of the current week
+
+    int count = widget.data.where((entry) =>
+        entry['name'] == name &&
+        DateTime.parse(entry['date']).isAfter(startOfWeek) &&
+        DateTime.parse(entry['date']).isBefore(endOfWeek)
+    ).length;
+
+    // print('${name}: ${count}');
+    return count;
+  }
+
+  getPenalty(String name) {
+    int penalty;
+    DateTime now = DateTime.now();
+    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Get the start of the current week
+    DateTime endOfWeek = now.add(Duration(days: DateTime.daysPerWeek - now.weekday)); // Get the end of the current week
+
+    int count = widget.data.where((entry) =>
+        entry['name'] == name &&
+        DateTime.parse(entry['date']).isAfter(startOfWeek) &&
+        DateTime.parse(entry['date']).isBefore(endOfWeek)
+    ).length;
+
+    if (count > 3) {
+      penalty = 0;
+    } else {
+      penalty = (3 - count) * 5000;
+    }
+    return penalty.toString() + '원';
+  }
+
+  checkWeight(String name, int day) {
+    DateTime now = DateTime.now();
+    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Get the start of the current week
+    DateTime endOfWeek = now.add(Duration(days: DateTime.daysPerWeek - now.weekday)); // Get the end of the current week
+
+    bool didWeight = widget.data.any((entry) =>
+        entry['name'] == name &&
+        DateTime.parse(entry['date']).weekday == day &&
+        DateTime.parse(entry['date']).isAfter(startOfWeek) &&
+        DateTime.parse(entry['date']).isBefore(endOfWeek)
+    );
+
+    return didWeight;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+      return Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              SizedBox(
+                width: 60,
+                child: Text('이름', style: TextStyle(fontWeight: FontWeight.w700),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              SizedBox(
+                width: 80,
+                child: Text('이번주', style: TextStyle(fontWeight: FontWeight.w700),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              SizedBox(
+                width: 60,
+                child: Text('벌금', style: TextStyle(fontWeight: FontWeight.w700),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ]
+          ),
+          Container(
+            height : 500,
+            child: ListView.builder(
+              itemCount: widget.names.length,
+              itemBuilder: (c, i){
+                return Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        SizedBox(
+                          width: 60,
+                          child: Text('${widget.names[i]}',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        SizedBox(
+                          width: 80,
+                          child: Text('${getWeekNum(widget.names[i]).toString()}/3',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        SizedBox(
+                          width: 60,
+                          child: Text('${getPenalty(widget.names[i]).toString()}',
+                            textAlign: TextAlign.right,
+                          ),
+                        )
+                      ]
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (var day in widget.weekdayList)
+                        Container(
+                          width: 50,
+                          height: 50,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: checkWeight(widget.names[i], widget.weekdayList.indexOf(day)) == true
+                              ? Colors.red[300] // Example background color
+                              : Colors.grey[300], // Example background color
+                            border: Border.all(color: Colors.black), // Example border
+                          ),
+                          child: Text(day),
+                        )
+                      ]
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      );
+  }
+}
+
+
+class Check extends StatefulWidget {
+  const Check({super.key, this.names, this.data});
+  final names;
+  final data;
+
+  @override
+  State<Check> createState() => _CheckState();
+}
+
+class _CheckState extends State<Check> {
   String? _selectedName;
   String? _selectedImagePath;
 
@@ -76,9 +230,19 @@ class _HomeState extends State<Home> {
     print('Name: $_selectedName');
     print('Image path: $_selectedImagePath');
     // Add logic to store the data
-    // var addData = {
-    //   'id': data.length,
-    // }
+    if (_selectedName != null) {
+      var newData = {
+        'id': widget.data.length,
+        'name': _selectedName,
+        'image': _selectedImagePath,
+        'date': DateTime.now().toString(),
+        // 'date': '2024-04-21 06:35:30.869945',
+      };
+      setState(() {
+        widget.data.add(newData);
+      });
+      print('Data: ${widget.data}');
+    }
   }
 
   @override
@@ -89,7 +253,7 @@ class _HomeState extends State<Home> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           SelectInput(
-            names: widget.names ?? [],
+            names: widget.names,
             onNameSelected: _handleNameSelected,
           ),
           ImageInputScreen(
@@ -97,7 +261,7 @@ class _HomeState extends State<Home> {
           ),
           ElevatedButton(
             onPressed: _handleSubmit,
-            child: Text('인증완료'),
+            child: Text('인증'),
           ),
         ],
       ),
