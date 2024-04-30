@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'style.dart' as style;
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() {
   runApp(
@@ -25,15 +27,33 @@ class _MyAppState extends State<MyApp> {
   List<String> names = ['권정호', '김세호', '김현빈', '신동훈', '이명건', '천승범', '황동근'];
   List<String> weekdayList = ['월', '화', '수', '목', '금', '토', '일'];
 
+  String currentDate() {
+    initializeDateFormatting('ko_KR', null);
+    DateTime now = DateTime.now();
+    DateFormat dateFormat = DateFormat('MM/dd (E)', 'ko_KR');
+    String formattedDate = dateFormat.format(now);
+
+    return formattedDate;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar( title: Text('💪 헬스팸',), backgroundColor: Colors.redAccent[400], ), //lightBlueAccent[400]
+      appBar: AppBar(
+        elevation: 1,
+        title: Text(currentDate(),),
+        titleTextStyle: TextStyle(
+          color: Colors.black,
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      // appBar: AppBar( title: Text('💪 헬스팸',), backgroundColor: Colors.redAccent[400], ), //lightBlueAccent[400]
       body: [Home(names : names, data : data, weekdayList : weekdayList), Check(names : names, data : data), Text('기록페이지')][tab],
       // 홈화면 : 이번주 전체 진행상태, 체크화면 : 인증, 달력화면 : 총 기록
       bottomNavigationBar: BottomNavigationBar(
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
+          currentIndex: tab, // Add this line
+          selectedItemColor: Colors.green, // The color of the icon and text when the item is selected
           onTap: (i){
             setState(() {
               tab = i;
@@ -41,13 +61,30 @@ class _MyAppState extends State<MyApp> {
           },
           items: [
             BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: '홈'),
-            BottomNavigationBarItem(icon: Icon(Icons.check), label: '체크'),
+            BottomNavigationBarItem(icon: Icon(Icons.check), label: '인증'),
             BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: '기록'),
           ]
       ),
     );
   }
 }
+
+class HomeAppBar extends StatefulWidget {
+  const HomeAppBar({super.key});
+
+  @override
+  State<HomeAppBar> createState() => _HomeAppBarState();
+}
+
+class _HomeAppBarState extends State<HomeAppBar> {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      child: Text('4월 27일')
+    );
+  }
+}
+
 
 class Home extends StatefulWidget {
   const Home({super.key, this.names, this.data, this.weekdayList});
@@ -74,8 +111,8 @@ class _HomeState extends State<Home> {
     return count;
   }
 
-  getPenalty(String name) {
-    int penalty;
+  // 이번주 횟수 계산
+  weightNum(String name) {
     DateTime now = DateTime.now();
     DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Get the start of the current week
     DateTime endOfWeek = now.add(Duration(days: DateTime.daysPerWeek - now.weekday)); // Get the end of the current week
@@ -86,12 +123,20 @@ class _HomeState extends State<Home> {
         DateTime.parse(entry['date']).isBefore(endOfWeek)
     ).length;
 
+    return count;
+  }
+
+  // 벌금 계산
+  getPenalty(int count) {
+    int penalty;
+    final formatter = NumberFormat('#,##0', 'en_US');
+
     if (count > 3) {
       penalty = 0;
     } else {
       penalty = (3 - count) * 5000;
     }
-    return penalty.toString() + '원';
+    return formatter.format(penalty);
   }
 
   checkWeight(String name, int day) {
@@ -116,86 +161,116 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-      return Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      return ListView.builder (
+        itemCount: widget.names.length,
+        itemBuilder: (c, i) {
+          return Column(
             children: [
-              SizedBox(
-                width: 60,
-                child: Text('이름', style: TextStyle(fontWeight: FontWeight.w700),
-                  textAlign: TextAlign.center,
+              ListTile(
+                leading: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Color.fromRGBO(0, 0, 0, 0.05),
+                  child: Text(
+                    ['☹️', '🙁', '😏', '😁'][weightNum(widget.names[i])],
+                    style: TextStyle(fontSize: 24),
+                  ),
                 ),
-              ),
-              SizedBox(
-                width: 80,
-                child: Text('이번주', style: TextStyle(fontWeight: FontWeight.w700),
-                  textAlign: TextAlign.center,
+                title: Text(
+                  widget.names[i],
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
+                subtitle: Text('${weightNum(widget.names[i])}/3'),
+                trailing: Text('${getPenalty(weightNum(widget.names[i]))} 원'),
               ),
-              SizedBox(
-                width: 60,
-                child: Text('벌금', style: TextStyle(fontWeight: FontWeight.w700),
-                  textAlign: TextAlign.center,
-                ),
+              // This adds a bottom border after each ListTile, including the last one
+              Container(
+                height: 1,
+                color: Colors.grey[300],
               ),
-            ]
-          ),
-          Container(
-            height : 500,
-            child: ListView.builder(
-              itemCount: widget.names.length,
-              itemBuilder: (c, i){
-                return Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        SizedBox(
-                          width: 60,
-                          child: Text('${widget.names[i]}',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        SizedBox(
-                          width: 80,
-                          child: Text('${getWeekNum(widget.names[i]).toString()}/3',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        SizedBox(
-                          width: 60,
-                          child: Text('${getPenalty(widget.names[i]).toString()}',
-                            textAlign: TextAlign.right,
-                          ),
-                        )
-                      ]
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        for (var day in widget.weekdayList)
-                        Container(
-                          width: 50,
-                          height: 50,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: checkWeight(widget.names[i], widget.weekdayList.indexOf(day)) == true
-                              ? Colors.red[300] // Example background color
-                              : Colors.grey[300], // Example background color
-                            border: Border.all(color: Colors.black), // Example border
-                          ),
-                          child: Text(day),
-                        )
-                      ]
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
+            ],
+          );
+        }
       );
+        // Column(
+        // children: [
+        //   Row(
+        //     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        //     children: [
+        //       SizedBox(
+        //         width: 60,
+        //         child: Text('이름', style: TextStyle(fontWeight: FontWeight.w700),
+        //           textAlign: TextAlign.center,
+        //         ),
+        //       ),
+        //       SizedBox(
+        //         width: 80,
+        //         child: Text('이번주', style: TextStyle(fontWeight: FontWeight.w700),
+        //           textAlign: TextAlign.center,
+        //         ),
+        //       ),
+        //       SizedBox(
+        //         width: 60,
+        //         child: Text('벌금', style: TextStyle(fontWeight: FontWeight.w700),
+        //           textAlign: TextAlign.center,
+        //         ),
+        //       ),
+        //     ]
+        //   ),
+        //   Container(
+        //     height : 500,
+        //     child: ListView.builder(
+        //       itemCount: widget.names.length,
+        //       itemBuilder: (c, i){
+        //         return Column(
+        //           children: [
+        //             Row(
+        //               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        //               children: [
+        //                 SizedBox(
+        //                   width: 60,
+        //                   child: Text('${widget.names[i]}',
+        //                     textAlign: TextAlign.center,
+        //                   ),
+        //                 ),
+        //                 SizedBox(
+        //                   width: 80,
+        //                   child: Text('${getWeekNum(widget.names[i]).toString()}/3',
+        //                     textAlign: TextAlign.center,
+        //                   ),
+        //                 ),
+        //                 SizedBox(
+        //                   width: 60,
+        //                   child: Text('${getPenalty(widget.names[i]).toString()}',
+        //                     textAlign: TextAlign.right,
+        //                   ),
+        //                 )
+        //               ]
+        //             ),
+        //             Row(
+        //               mainAxisAlignment: MainAxisAlignment.center,
+        //               children: [
+        //                 for (var day in widget.weekdayList)
+        //                 Container(
+        //                   width: 50,
+        //                   height: 50,
+        //                   alignment: Alignment.center,
+        //                   decoration: BoxDecoration(
+        //                     color: checkWeight(widget.names[i], widget.weekdayList.indexOf(day)) == true
+        //                       ? Colors.red[300] // Example background color
+        //                       : Colors.grey[300], // Example background color
+        //                     border: Border.all(color: Colors.black), // Example border
+        //                   ),
+        //                   child: Text(day),
+        //                 )
+        //               ]
+        //             ),
+        //           ],
+        //         );
+      //         },
+      //       ),
+      //     ),
+      //   ],
+      // );
   }
 }
 
