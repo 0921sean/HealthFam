@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -49,7 +50,11 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
       // appBar: AppBar( title: Text('💪 헬스팸',), backgroundColor: Colors.redAccent[400], ), //lightBlueAccent[400]
-      body: [Home(names : names, data : data, weekdayList : weekdayList), Check(names : names, data : data), Text('기록페이지')][tab],
+      body: [
+        Home(names : names, data : data, weekdayList : weekdayList),
+        Check(names : names, data : data),
+        Record(names : names, data : data, weekdayList : weekdayList),
+      ][tab],
       // 홈화면 : 이번주 전체 진행상태, 체크화면 : 인증, 달력화면 : 총 기록
       bottomNavigationBar: BottomNavigationBar(
           currentIndex: tab, // Add this line
@@ -69,22 +74,6 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-class HomeAppBar extends StatefulWidget {
-  const HomeAppBar({super.key});
-
-  @override
-  State<HomeAppBar> createState() => _HomeAppBarState();
-}
-
-class _HomeAppBarState extends State<HomeAppBar> {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      child: Text('4월 27일')
-    );
-  }
-}
-
 
 class Home extends StatefulWidget {
   const Home({super.key, this.names, this.data, this.weekdayList});
@@ -95,21 +84,6 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-
-  getWeekNum(String name) {
-    DateTime now = DateTime.now();
-    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Get the start of the current week
-    DateTime endOfWeek = now.add(Duration(days: DateTime.daysPerWeek - now.weekday)); // Get the end of the current week
-
-    int count = widget.data.where((entry) =>
-        entry['name'] == name &&
-        DateTime.parse(entry['date']).isAfter(startOfWeek) &&
-        DateTime.parse(entry['date']).isBefore(endOfWeek)
-    ).length;
-
-    // print('${name}: ${count}');
-    return count;
-  }
 
   // 이번주 횟수 계산
   weightNum(String name) {
@@ -139,6 +113,7 @@ class _HomeState extends State<Home> {
     return formatter.format(penalty);
   }
 
+  // 그날 헬스 여부 확인
   checkWeight(String name, int day) {
     DateTime now = DateTime.now();
     DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Get the start of the current week
@@ -171,7 +146,8 @@ class _HomeState extends State<Home> {
                   radius: 20,
                   backgroundColor: Color.fromRGBO(0, 0, 0, 0.05),
                   child: Text(
-                    ['☹️', '🙁', '😏', '😁'][weightNum(widget.names[i])],
+                    ['☹️', '🙁', '😏', '😁'][weightNum(widget.names[i]) > 3 ?
+                      3 : weightNum(widget.names[i])],
                     style: TextStyle(fontSize: 24),
                   ),
                 ),
@@ -191,94 +167,13 @@ class _HomeState extends State<Home> {
           );
         }
       );
-        // Column(
-        // children: [
-        //   Row(
-        //     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        //     children: [
-        //       SizedBox(
-        //         width: 60,
-        //         child: Text('이름', style: TextStyle(fontWeight: FontWeight.w700),
-        //           textAlign: TextAlign.center,
-        //         ),
-        //       ),
-        //       SizedBox(
-        //         width: 80,
-        //         child: Text('이번주', style: TextStyle(fontWeight: FontWeight.w700),
-        //           textAlign: TextAlign.center,
-        //         ),
-        //       ),
-        //       SizedBox(
-        //         width: 60,
-        //         child: Text('벌금', style: TextStyle(fontWeight: FontWeight.w700),
-        //           textAlign: TextAlign.center,
-        //         ),
-        //       ),
-        //     ]
-        //   ),
-        //   Container(
-        //     height : 500,
-        //     child: ListView.builder(
-        //       itemCount: widget.names.length,
-        //       itemBuilder: (c, i){
-        //         return Column(
-        //           children: [
-        //             Row(
-        //               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        //               children: [
-        //                 SizedBox(
-        //                   width: 60,
-        //                   child: Text('${widget.names[i]}',
-        //                     textAlign: TextAlign.center,
-        //                   ),
-        //                 ),
-        //                 SizedBox(
-        //                   width: 80,
-        //                   child: Text('${getWeekNum(widget.names[i]).toString()}/3',
-        //                     textAlign: TextAlign.center,
-        //                   ),
-        //                 ),
-        //                 SizedBox(
-        //                   width: 60,
-        //                   child: Text('${getPenalty(widget.names[i]).toString()}',
-        //                     textAlign: TextAlign.right,
-        //                   ),
-        //                 )
-        //               ]
-        //             ),
-        //             Row(
-        //               mainAxisAlignment: MainAxisAlignment.center,
-        //               children: [
-        //                 for (var day in widget.weekdayList)
-        //                 Container(
-        //                   width: 50,
-        //                   height: 50,
-        //                   alignment: Alignment.center,
-        //                   decoration: BoxDecoration(
-        //                     color: checkWeight(widget.names[i], widget.weekdayList.indexOf(day)) == true
-        //                       ? Colors.red[300] // Example background color
-        //                       : Colors.grey[300], // Example background color
-        //                     border: Border.all(color: Colors.black), // Example border
-        //                   ),
-        //                   child: Text(day),
-        //                 )
-        //               ]
-        //             ),
-        //           ],
-        //         );
-      //         },
-      //       ),
-      //     ),
-      //   ],
-      // );
   }
 }
 
 
 class Check extends StatefulWidget {
   const Check({super.key, this.names, this.data});
-  final names;
-  final data;
+  final names, data;
 
   @override
   State<Check> createState() => _CheckState();
@@ -286,11 +181,13 @@ class Check extends StatefulWidget {
 
 class _CheckState extends State<Check> {
   String? _selectedName;
+  bool _isNameSelected = false;
   String? _selectedImagePath;
 
   void _handleNameSelected(String? name) {
     setState(() {
       _selectedName = name;
+      _isNameSelected = true;
     });
   }
 
@@ -316,8 +213,45 @@ class _CheckState extends State<Check> {
       setState(() {
         widget.data.add(newData);
       });
+      showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('인증 완료'),
+              content: Text('${_selectedName}님, 오늘도 수고하셨습니다.'),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('확인'),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                    setState(() {
+                      _selectedName = null;
+                      _selectedImagePath = null;
+                      _isNameSelected = false;  // If you're using this to control flow
+                    });
+                  },
+                ),
+              ],
+            );
+          }
+      );
       print('Data: ${widget.data}');
     }
+  }
+
+  // 이번주 횟수 계산
+  weightNum(String name) {
+    DateTime now = DateTime.now();
+    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Get the start of the current week
+    DateTime endOfWeek = now.add(Duration(days: DateTime.daysPerWeek - now.weekday)); // Get the end of the current week
+
+    int count = widget.data.where((entry) =>
+    entry['name'] == name &&
+        DateTime.parse(entry['date']).isAfter(startOfWeek) &&
+        DateTime.parse(entry['date']).isBefore(endOfWeek)
+    ).length;
+
+    return count;
   }
 
   @override
@@ -325,19 +259,48 @@ class _CheckState extends State<Check> {
     return Container(
       width: double.infinity,
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          SelectInput(
-            names: widget.names,
-            onNameSelected: _handleNameSelected,
-          ),
-          ImageInputScreen(
-            onImageSelected: _handleImageSelected,
-          ),
-          ElevatedButton(
-            onPressed: _handleSubmit,
-            child: Text('인증'),
-          ),
+          if (!_isNameSelected) ...[
+            Padding(
+              padding: EdgeInsets.only(bottom: 20),
+              child: Text(
+                '이름을 선택해주세요',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            SelectInput(
+              names: widget.names,
+              onNameSelected: _handleNameSelected,
+            ),
+          ],
+          if (_isNameSelected && _selectedName != null) ...[
+            Text(
+              '${_selectedName}님, 오늘이 ${weightNum(_selectedName ?? "") + 1}번째 인증입니다 🔥',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+            ),
+            ImageInputScreen(
+              onImageSelected: _handleImageSelected,
+            ),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: FloatingActionButton(
+                  onPressed: () {
+                    _handleSubmit();
+                  },
+                  backgroundColor: Colors.yellow, // Set the background color to yellow
+                  foregroundColor: Colors.black, // Set the icon color to black
+                  child: Icon(Icons.send),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -429,36 +392,264 @@ class _ImageInputScreenState extends State<ImageInputScreen> {
 
   Widget _buildPhotoArea() {
     return _image != null
-        ? Container(
-            width: 300,
-            height: 300,
-            child: Image.file(File(_image!.path)), //가져온 이미지를 화면에 띄워주는 코드
-          )
-        : Container(
-            width: 300,
-            height: 300,
-            color: Colors.grey,
-          );
+      ? Container(
+        width: 300,
+        // height: 300,
+        decoration: BoxDecoration(
+          color: Colors.blue, // Background color
+          borderRadius: BorderRadius.circular(20), // Rounded corners
+          boxShadow: [ // Optional: Adding shadow for a 3D effect
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              spreadRadius: 1,
+              blurRadius: 5,
+              offset: Offset(0, 3), // changes position of shadow
+            ),
+          ],
+        ),
+        child: ClipRRect( // Add ClipRRect for rounded corners on the image
+          borderRadius: BorderRadius.circular(20),
+          child: Image.file(
+            File(_image!.path),
+            fit: BoxFit.cover, // This will cover the area of the container without changing the aspect ratio
+          ),
+        ),
+      )
+      : Container(
+        width: 300,
+        height: 300,
+        decoration: BoxDecoration(
+          color: Colors.grey, // Background color
+          borderRadius: BorderRadius.circular(20), // Rounded corners
+          boxShadow: [ // Optional: Adding shadow for a 3D effect
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              spreadRadius: 1,
+              blurRadius: 5,
+              offset: Offset(0, 3), // changes position of shadow
+            ),
+          ],
+        ),
+      );
   }
 
   Widget _buildButton() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        ElevatedButton(
-          onPressed: () {
-            getImage(ImageSource.camera); //getImage 함수를 호출해서 카메라로 찍은 사진 가져오기
-          },
-          child: Text("카메라"),
+        SizedBox(
+          width: 130,
+          height: 100,
+          child: ElevatedButton(
+            onPressed: () {
+              getImage(ImageSource.camera); //getImage 함수를 호출해서 카메라로 찍은 사진 가져오기
+            },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[200], // Background color
+                // backgroundColor: Colors.blue[100], // Background color
+                foregroundColor: Colors.brown, // Text and icon color
+                elevation: 0, // No shadow for a flat design
+                textStyle: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10), // Rounded corners
+                ),
+              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(Icons.camera_alt),
+                Text("카메라"),
+              ]
+            )
+          ),
         ),
-        SizedBox(width: 30),
-        ElevatedButton(
-          onPressed: () {
-            getImage(ImageSource.gallery); //getImage 함수를 호출해서 갤러리에서 사진 가져오기
-          },
-          child: Text("갤러리"),
+        SizedBox(width: 40),
+        SizedBox(
+          width: 130,
+          height: 100,
+          child: ElevatedButton(
+            onPressed: () {
+              getImage(ImageSource.gallery); //getImage 함수를 호출해서 갤러리에서 사진 가져오기
+            },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[200], // Background color
+                // backgroundColor: Colors.green[100], // Background color
+                foregroundColor: Colors.brown, // Text and icon color
+                elevation: 0, // No shadow for a flat design
+                textStyle: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10), // Rounded corners
+                ),
+              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(Icons.image),
+                Text("갤러리"),
+              ]
+            )
+          ),
         ),
       ],
+    );
+  }
+}
+
+class Record extends StatefulWidget {
+  const Record({super.key, this.names, this.data, this.weekdayList});
+  final names, data, weekdayList;
+
+  @override
+  State<Record> createState() => _RecordState();
+}
+
+class _RecordState extends State<Record> {
+
+  String? _selectedName;
+  bool _isNameSelected = false;
+  List<String> dayOfWeekList = [];
+
+  void _handleNameSelected(String? name) {
+    setState(() {
+      _selectedName = name;
+      _isNameSelected = true;
+    });
+  }
+
+  // 그날 헬스했는지 확인
+  bool checkWeight(String name, int day) {
+    DateTime now = DateTime.now();
+    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Get the start of the current week
+    DateTime endOfWeek = now.add(Duration(days: DateTime.daysPerWeek - now.weekday)); // Get the end of the current week
+
+    return widget.data.any((entry) =>
+      entry['name'] == name &&
+      DateTime.parse(entry['date']).weekday == day &&
+      DateTime.parse(entry['date']).isAfter(startOfWeek) &&
+      DateTime.parse(entry['date']).isBefore(endOfWeek)
+    );
+  }
+
+  List<String> getDayOfWeekList() {
+    DateTime now = DateTime.now();
+    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+
+    List<String> dayOfWeekList = [];
+
+    for (int i = 0; i < 7; i++) {
+      DateTime dayOfWeek = startOfWeek.add(Duration(days: i));
+      dayOfWeekList.add(dayOfWeek.day.toString());
+      print(dayOfWeekList);
+    }
+
+    return dayOfWeekList;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    dayOfWeekList = getDayOfWeekList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      child: Column(
+        // mainAxisAlignment: MainAxisAlignment.center,
+        // crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (!_isNameSelected) ...[
+            Padding(
+              padding: EdgeInsets.only(bottom: 20),
+              child: Text(
+                '이름을 선택해주세요',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            SelectInput(
+              names: widget.names,
+              onNameSelected: _handleNameSelected,
+            ),
+          ],
+          if (_isNameSelected && _selectedName != null) ...[
+            Text('${_selectedName}님의 기록 🏃',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500, ),
+            ),
+            Container(
+              height : 500,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  for (var i = 0; i < widget.weekdayList.length; i++)
+                    Column(
+                      children: [
+                        Text(
+                          widget.weekdayList[i],
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 12,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: checkWeight(_selectedName ?? "", i+1)
+                              ? Colors.green : Colors.grey[200],
+                            shape: BoxShape.circle,
+                            boxShadow: checkWeight(_selectedName ?? "", i+1)
+                              ? [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.5),
+                                spreadRadius: 1,
+                                blurRadius: 5,
+                                offset: Offset(0, 3),
+                              )]
+                              : [],
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            dayOfWeekList[i].toString(),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                      // width: 50,
+                      // height: 50,
+                      // alignment: Alignment.center,
+                      // decoration: BoxDecoration(
+                      //   color: checkWeight(_selectedName ?? "", widget.weekdayList.indexOf(day)) == true
+                      //       ? Colors.red[300] // Example background color
+                      //       : Colors.grey[300], // Example background color
+                      //   border: Border.all(color: Colors.black), // Example border
+                      // ),
+                      // child: Text(day),
+                    )
+                ]
+              )
+            )
+          ]
+        ]
+      ),
     );
   }
 }
