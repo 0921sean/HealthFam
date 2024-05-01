@@ -527,20 +527,7 @@ class _RecordState extends State<Record> {
     });
   }
 
-  // 그날 헬스했는지 확인
-  bool checkWeight(String name, int day) {
-    DateTime now = DateTime.now();
-    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Get the start of the current week
-    DateTime endOfWeek = now.add(Duration(days: DateTime.daysPerWeek - now.weekday)); // Get the end of the current week
-
-    return widget.data.any((entry) =>
-      entry['name'] == name &&
-      DateTime.parse(entry['date']).weekday == day &&
-      DateTime.parse(entry['date']).isAfter(startOfWeek) &&
-      DateTime.parse(entry['date']).isBefore(endOfWeek)
-    );
-  }
-
+  // 그 주 day 구하기
   List<String> getDayOfWeekList() {
     DateTime now = DateTime.now();
     DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
@@ -556,6 +543,58 @@ class _RecordState extends State<Record> {
     return dayOfWeekList;
   }
 
+  // 오늘인지 확인
+  bool isToday(int day) {
+    DateTime now = DateTime.now();
+    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    DateTime dateToCheck = startOfWeek.add(Duration(days: day));
+
+    return dateToCheck.year == now.year &&
+        dateToCheck.month == now.month &&
+        dateToCheck.day == now.day;
+  }
+
+  // 그날 헬스했는지 확인
+  bool checkWeight(String name, int day) {
+    DateTime now = DateTime.now();
+    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Get the start of the current week
+    DateTime endOfWeek = now.add(Duration(days: DateTime.daysPerWeek - now.weekday)); // Get the end of the current week
+
+    return widget.data.any((entry) =>
+      entry['name'] == name &&
+      DateTime.parse(entry['date']).weekday == day &&
+      DateTime.parse(entry['date']).isAfter(startOfWeek) &&
+      DateTime.parse(entry['date']).isBefore(endOfWeek)
+    );
+  }
+
+  // 연속주 계산
+  int checkContinuity(String name) {
+    DateTime now = DateTime.now();
+    int sequenceWeight = 0;
+
+    while (true) {
+      DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+      DateTime endOfWeek = now.add(Duration(days: DateTime.daysPerWeek - now.weekday));
+
+      int count = widget.data.where((entry) =>
+      entry['name'] == name &&
+          DateTime.parse(entry['date']).isAfter(startOfWeek) &&
+          DateTime.parse(entry['date']).isBefore(endOfWeek)
+      ).length;
+
+      if (count >= 3) {
+        sequenceWeight += 1;
+        now = now.subtract(Duration(days: 7));  // Move to the start of the previous week
+      } else {
+        break;
+      }
+    }
+
+    return sequenceWeight;
+  }
+
+
   @override
   void initState() {
     super.initState();
@@ -567,8 +606,8 @@ class _RecordState extends State<Record> {
     return Container(
       width: double.infinity,
       child: Column(
-        // mainAxisAlignment: MainAxisAlignment.center,
-        // crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (!_isNameSelected) ...[
             Padding(
@@ -587,66 +626,107 @@ class _RecordState extends State<Record> {
             ),
           ],
           if (_isNameSelected && _selectedName != null) ...[
-            Text('${_selectedName}님의 기록 🏃',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500, ),
-            ),
             Container(
-              height : 500,
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: EdgeInsets.only(right: 10, top: 10),  // Adjust the padding value as needed
+                  child: Text(
+                    '< ${_selectedName}님의 기록 >',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              )
+            ),
+            SizedBox(height: 50),
+            Text('🏃', style: TextStyle(fontSize: 200)),
+            SizedBox(height: 50),
+            Container(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   for (var i = 0; i < widget.weekdayList.length; i++)
-                    Column(
-                      children: [
-                        Text(
-                          widget.weekdayList[i],
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 12,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: checkWeight(_selectedName ?? "", i+1)
-                              ? Colors.green : Colors.grey[200],
-                            shape: BoxShape.circle,
-                            boxShadow: checkWeight(_selectedName ?? "", i+1)
-                              ? [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.5),
-                                spreadRadius: 1,
-                                blurRadius: 5,
-                                offset: Offset(0, 3),
-                              )]
-                              : [],
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            dayOfWeekList[i].toString(),
+                    Container(
+                      padding: EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isToday(i) ? Colors.grey[700] : Colors.white,
+                        borderRadius: BorderRadius.circular(15), // Rounded corners
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.weekdayList[i],
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: isToday(i) ? Colors.white :
+                                checkWeight(_selectedName ?? "", i+1) ? Colors.black : Colors.grey,
+                              fontSize: 18,
                             ),
                           ),
-                        ),
-                      ],
-                      // width: 50,
-                      // height: 50,
-                      // alignment: Alignment.center,
-                      // decoration: BoxDecoration(
-                      //   color: checkWeight(_selectedName ?? "", widget.weekdayList.indexOf(day)) == true
-                      //       ? Colors.red[300] // Example background color
-                      //       : Colors.grey[300], // Example background color
-                      //   border: Border.all(color: Colors.black), // Example border
-                      // ),
-                      // child: Text(day),
+                          SizedBox(height: 5),
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: checkWeight(_selectedName ?? "", i+1)
+                                ? Colors.green : Colors.grey[200],
+                              shape: BoxShape.circle,
+                              boxShadow: checkWeight(_selectedName ?? "", i+1)
+                                ? [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.5),
+                                  spreadRadius: 1,
+                                  blurRadius: 5,
+                                  offset: Offset(0, 3),
+                                )]
+                                : [],
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              dayOfWeekList[i].toString(),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 18
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     )
                 ]
               )
-            )
+            ),
+            SizedBox(height: 50),
+            Container(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  checkContinuity(_selectedName ?? "") > 0
+                    ? Image.asset('assets/WeightDone.png', width: 100)
+                    : Image.asset('assets/WeightNotDone.png', width: 100),
+                  checkContinuity(_selectedName ?? "") > 1
+                    ? Image.asset('assets/WeightDone.png', width: 100)
+                    : Image.asset('assets/WeightNotDone.png', width: 100),
+                  checkContinuity(_selectedName ?? "") > 2
+                    ? Image.asset('assets/WeightDone.png', width: 100)
+                    : Image.asset('assets/WeightNotDone.png', width: 100),
+                  checkContinuity(_selectedName ?? "") > 3
+                    ? Image.asset('assets/WeightDone.png', width: 100)
+                    : Image.asset('assets/WeightNotDone.png', width: 100),
+                ]
+              )
+            ),
+            Container(
+                child: Text(checkContinuity(_selectedName ?? "") != 0
+                    ? '${checkContinuity(_selectedName ?? "")}주 연속 🔥'
+                    : '${checkContinuity(_selectedName ?? "")}주 연속'
+                  , style: checkContinuity(_selectedName ?? "") != 0
+                      ? TextStyle(fontSize: 25, fontWeight: FontWeight.bold)
+                      : TextStyle(fontSize: 25),
+                )
+            ),
+            SizedBox(height: 50),
           ]
         ]
       ),
